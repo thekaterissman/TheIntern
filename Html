@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>The Intern App: Core Lattice Timer</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #2c3e50; color: #ecf0f1; text-align: center; padding: 20px; }
+        .aura { border: 4px solid #3498db; padding: 30px; margin: 20px auto; max-width: 600px; background-color: #34495e; border-radius: 10px; box-shadow: 0 0 20px rgba(52, 152, 219, 0.5); }
+        h1 { color: #e74c3c; margin-bottom: 5px;}
+        h2 { color: #2ecc71; margin-top: 0; }
+        .score { font-weight: bold; font-size: 1.3em; color: #f1c40f; }
+        .timer-display { font-size: 4em; color: #ecf0f1; margin: 20px 0; }
+        button { background-color: #3498db; color: white; border: none; padding: 12px 25px; margin: 8px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #2980b9; }
+        .danger { background-color: #e74c3c; }
+        .danger:hover { background-color: #c0392b; }
+        .status-bar { height: 20px; background-color: #e74c3c; width: 0%; border-radius: 5px; transition: width 1s, background-color 0.5s; margin: 10px auto; }
+    </style>
+</head>
+<body>
+    <div class="aura">
+        <h1>The Intern App</h1>
+        <h2>Core Lattice Status: <span id="aura-status">Initializing...</span></h2>
+        
+        <div class="timer-display" id="timer-display">25:00</div>
+        <button onclick="startTimer()">Start Focus (25min)</button>
+        <button onclick="stopTimer()" class="danger">Stop/Reset</button>
+
+        <hr style="border-color: #3498db; margin: 20px 0;">
+
+        <h3>Metaphysical Metrics (RevenueCat Properties)</h3>
+        <p>Jeong Loyalty Score (<span style="color:#f1c40f;">$\mathbf{J}$</span>): <span id="jeong-score" class="score">0.00</span></p>
+        <p>Nunchi Harmony Index (<span style="color:#2ecc71;">$\mathbf{N}$</span>): <span id="nunchi-score" class="score">0.00</span></p>
+        <div class="status-bar" id="nunchi-bar"></div>
+        <p>Han Resilience Points (<span style="color:#e74c3c;">$\mathbf{H}$</span>): <span id="han-score" class="score">0</span></p>
+        <button onclick="contributeHan()">Contribute Act of Resilience (+10 Han)</button>
+    </div>
+
+    <script>
+        // --- TIMER LOGIC ---
+        let timerInterval;
+        let timeRemaining = 1500; // 25 minutes in seconds
+
+        function startTimer() {
+            if (timerInterval) return; // Prevent double start
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    alert("Focus session complete! Resilience logged.");
+                    timeRemaining = 1500;
+                    updateTimerDisplay();
+                    // Log connection upon successful session completion (Boosts Jeong)
+                    simulateConnection(); 
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timeRemaining = 1500;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById('timer-display').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // --- METRICS FETCH AND DISPLAY ---
+        async function fetchMetrics() {
+            try {
+                const response = await fetch('/metrics');
+                const data = await response.json();
+                
+                document.getElementById('aura-status').textContent = data.Aura_Status;
+                document.getElementById('jeong-score').textContent = data.user_loyalty_score;
+                document.getElementById('han-score').textContent = data.Global_Han_Score;
+                
+                const nunchiScore = data.aura_harmony_index;
+                document.getElementById('nunchi-score').textContent = nunchiScore;
+
+                const nunchiBar = document.getElementById('nunchi-bar');
+                nunchiBar.style.width = `${nunchiScore}%`;
+                
+                // Change bar color based on Nunchi for visual feedback (A/B Test Trigger)
+                if (nunchiScore > 75) {
+                    nunchiBar.style.backgroundColor = '#2ecc71'; // Green (Resonant Harmony)
+                } else if (nunchiScore > 50) {
+                    nunchiBar.style.backgroundColor = '#f1c40f'; // Yellow (Stable)
+                } else {
+                    nunchiBar.style.backgroundColor = '#e74c3c'; // Red (Seeking Resonance / Churn Risk)
+                }
+            } catch (error) {
+                document.getElementById('aura-status').textContent = 'CONNECTION ERROR';
+                console.error('Error fetching metrics:', error);
+            }
+        }
+
+        async function simulateConnection() {
+            await fetch('/connect', { method: 'POST' });
+            fetchMetrics();
+        }
+
+        async function contributeHan() {
+            const response = await fetch('/han/contribute', { method: 'POST' });
+            const data = await response.json();
+            alert('Act of Resilience Logged! New Han Score: ' + data.new_han_score);
+            fetchMetrics();
+        }
+
+        // Start continuous monitoring and initial display
+        updateTimerDisplay();
+        fetchMetrics();
+        setInterval(fetchMetrics, 2000); 
+    </script>
+</body>
+</html>
