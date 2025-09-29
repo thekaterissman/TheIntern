@@ -1,0 +1,138 @@
+from flask import Flask, jsonify, request
+import time
+import random
+import uuid
+import threading
+
+# Initialize the Flask application
+app = Flask(__name__)
+
+# --- CORE LATTICE DATA STORES (Simulated) ---
+# Data stores that reflect the core principles
+ACTIVE_USERS = {} # Stores user IDs and last activity time
+GLOBAL_HAN_SCORE = 4096 # Starting score for Han Ledger
+SYSTEM_LOAD_HISTORY = [50.0] * 10 # Tracks server load for Nunchi stability check
+
+# Lock to ensure thread-safe updates to global variables
+data_lock = threading.Lock()
+
+def continuous_nunchi_simulation():
+    """Simulates real-time system load changes for Nunchi metric."""
+    global SYSTEM_LOAD_HISTORY
+    while True:
+        with data_lock:
+            # Simulate load fluctuation, keeping it within a stable range (30-70)
+            new_load = SYSTEM_LOAD_HISTORY[-1] + random.uniform(-1.5, 1.5)
+            new_load = max(30.0, min(70.0, new_load))
+            
+            SYSTEM_LOAD_HISTORY.append(new_load)
+            if len(SYSTEM_LOAD_HISTORY) > 10:
+                SYSTEM_LOAD_HISTORY.pop(0)
+        time.sleep(1)
+
+# Start the background Nunchi thread immediately
+threading.Thread(target=continuous_nunchi_simulation, daemon=True).start()
+
+# --- CORE LATTICE METRIC CALCULATIONS ---
+
+# J: Jeong Matrix (Deep Connection & Loyalty)
+def calculate_jeong_connection():
+    """Calculates active users and a simulated loyalty score."""
+    # Count users active in the last 60 seconds
+    cutoff_time = time.time() - 60
+    active_count = sum(1 for t in ACTIVE_USERS.values() if t > cutoff_time)
+    
+    # The loyalty score is the basis for the Resonance Multiplier
+    # Simulated increase up to 100 based on total unique users for demonstration
+    loyalty_score = min(100.0, len(ACTIVE_USERS) * 0.5)
+    
+    return {
+        "active_users": active_count,
+        "user_loyalty_score": round(loyalty_score, 2) # Passed to RevenueCat
+    }
+
+# N: Nunchi Stream (Ambient Harmony Index - AHI)
+def calculate_nunchi_ahi():
+    """Calculates AHI based on system stability (Nunchi)."""
+    with data_lock:
+        current_history = SYSTEM_LOAD_HISTORY[:]
+        
+    if not current_history:
+        return {"nunchi_score": 100.00, "current_load": 50.0}
+
+    # 1. System Stability (Standard Deviation of recent load)
+    mean_load = sum(current_history) / len(current_history)
+    std_dev = (sum((x - mean_load)**2 for x in current_history) / len(current_history))**0.5
+    
+    # Nunchi is inversely proportional to volatility (15 is a scaling factor)
+    stability_score = max(0, 100 - (std_dev * 15)) 
+    
+    # 2. Final AHI - The lower the score, the higher the churn risk
+    nunchi_score = round(stability_score, 2)
+    
+    return {
+        "current_load": round(current_history[-1], 2),
+        "aura_harmony_index": max(0.00, nunchi_score) # Passed to RevenueCat
+    }
+
+# H: Han Ledger (Collective Resilience)
+def get_han_score():
+    """Retrieves the total, immutable Han Score."""
+    global GLOBAL_HAN_SCORE
+    return GLOBAL_HAN_SCORE
+
+def contribute_to_han(amount=10):
+    """Simulates adding an immutable transaction to the Ledger."""
+    global GLOBAL_HAN_SCORE
+    with data_lock:
+        # Here, a full system would apply the Resonance Multiplier based on J-score
+        GLOBAL_HAN_SCORE += amount
+    return GLOBAL_HAN_SCORE
+
+# --- API ENDPOINTS ---
+
+@app.route('/', methods=['GET'])
+def home_page():
+    """The root endpoint serves the Intern App's status page."""
+    try:
+        with open('index.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "The Intern App: Core Logic Running. Frontend HTML Missing.", 500
+
+@app.route('/metrics', methods=['GET'])
+def get_metrics():
+    """Returns the real-time J, N, and H scores for the UI and RevenueCat."""
+    jeong_data = calculate_jeong_connection()
+    nunchi_data = calculate_nunchi_ahi()
+    han_score = get_han_score()
+    
+    # Determine the status based on Nunchi for A/B test triggering narrative
+    status = "Resonant Harmony" if nunchi_data['aura_harmony_index'] > 75 else "Stable" if nunchi_data['aura_harmony_index'] > 50 else "Seeking Resonance (HIGH CHURN RISK)"
+
+    # This payload is what our UI reads AND holds the properties for RevenueCat
+    aura_data = {
+        "timestamp": int(time.time()),
+        "Aura_Status": status,
+        "Jeong_Active_Users": jeong_data['active_users'],
+        "user_loyalty_score": jeong_data['user_loyalty_score'], 
+        "aura_harmony_index": nunchi_data['aura_harmony_index'],        
+        "Global_Han_Score": han_score,
+        "lifetime_resilience_points": han_score # H Property for IAP gate
+    }
+    return jsonify(aura_data)
+
+@app.route('/connect', methods=['POST'])
+def register_user():
+    """Simulates a user activity event for Jeong tracking."""
+    # Generates a unique ID for the user's session
+    user_id = request.remote_addr + "_" + str(uuid.uuid4())
+    with data_lock:
+        ACTIVE_USERS[user_id] = time.time()
+    return jsonify({"message": f"User connection logged. Jeong tracked."})
+
+@app.route('/han/contribute', methods=['POST'])
+def handle_han_contribution():
+    """Endpoint for a user to contribute to the Han Ledger (Tier 2 feature)."""
+    new_score = contribute_to_han(amount=10)
+    return jsonify({"message": "Act of Resilience logged to the immutable ledger.", "new_han_score": new_score})
