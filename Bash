@@ -1,0 +1,13 @@
+# 1. Stop and clean up old environment
+docker stop living-aura && docker rm living-aura
+
+# 2. Commit all final code and documentation to GitHub
+git add . 
+git commit -m "FINAL SHIPATON SUBMISSION: Metaphysical Pricing Model and Data Strategy"
+git push origin main
+
+# 3. Rebuild and launch the final winning Docker image
+docker build -t intern-app-shipaton:v3 .
+docker run -d -p 8080:8080 --name living-aura intern-app-shipaton:v3
+
+# VERIFY: Check the live app and prepare the final Devpost submission text.
